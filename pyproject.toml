@@ -1,0 +1,12 @@
+[project]
+name = "s3-uploader"
+version = "0.1.0"
+description = "AWS S3 file uploader with progress tracking and GUI file picker"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "boto3>=1.35.0",
+    "python-dotenv>=1.1.1",
+    "rich>=14.2.0",
+    "textual-fspicker>=0.6.0",
+]
