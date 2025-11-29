@@ -37,7 +37,10 @@ class S3FileUploader:
         bucket_name (str): The name of the S3 bucket
         region_name (str): AWS region name
         s3_client: Boto3 S3 client instance
+        valid_folders (list): List of valid folders in vpms-vrt-emea-exp
     """
+
+    VALID_FOLDERS = ["content", "logo", "stills", "subtitles-closed", "subtitles-open"]
 
     def __init__(
         self,
@@ -106,6 +109,7 @@ class S3FileUploader:
     def upload_file(
         self,
         file_path: str | Path,
+        folder_choice: str = "content",
         s3_key: Optional[str] = None,
         extra_args: Optional[dict] = None,
         callback: Optional[Callable] = None,
@@ -115,7 +119,8 @@ class S3FileUploader:
 
         Args:
             file_path: Path to the file to upload
-            s3_key: S3 object key (path in bucket). If None, uses the filename
+            folder_choice: One of the predefined folders (content, logo, stills, subtitles-closed, subtitles-open)
+            s3_key: S3 object key (path in bucket). If None, uses folder_choice/filename
             extra_args: Extra arguments for upload (e.g., ContentType, ACL)
             callback: Optional callback function for custom progress tracking
 
@@ -133,9 +138,16 @@ class S3FileUploader:
             console.print(f"[red]Path is not a file: {file_path}[/red]")
             return False
 
-        # Use filename as S3 key if not provided
+        # Validate folder choice
+        if folder_choice not in self.VALID_FOLDERS:
+            console.print(
+                f"[red]Invalid folder choice. Must be one of: {', '.join(self.VALID_FOLDERS)}[/red]"
+            )
+            return False
+
+        # Use folder_choice/filename as S3 key if not provided
         if s3_key is None:
-            s3_key = file_path.name
+            s3_key = f"vpms-vrt-emea-exp/{folder_choice}/{file_path.name}"
 
         # Get file size
         file_size = file_path.stat().st_size
@@ -199,7 +211,7 @@ class S3FileUploader:
     def upload_directory(
         self,
         directory_path: str | Path,
-        s3_prefix: str = "",
+        folder_choice: str = "content",
         include_patterns: Optional[list[str]] = None,
         exclude_patterns: Optional[list[str]] = None,
     ) -> tuple[int, int]:
@@ -208,7 +220,7 @@ class S3FileUploader:
 
         Args:
             directory_path: Path to the directory to upload
-            s3_prefix: Prefix to add to all S3 keys
+            folder_choice: One of the predefined folders (content, logo, stills, subtitles-closed, subtitles-open)
             include_patterns: List of glob patterns to include (e.g., ['*.txt', '*.pdf'])
             exclude_patterns: List of glob patterns to exclude
 
@@ -219,6 +231,13 @@ class S3FileUploader:
 
         if not directory_path.exists() or not directory_path.is_dir():
             console.print(f"[red]Directory not found: {directory_path}[/red]")
+            return 0, 0
+
+        # Validate folder choice
+        if folder_choice not in self.VALID_FOLDERS:
+            console.print(
+                f"[red]Invalid folder choice. Must be one of: {', '.join(self.VALID_FOLDERS)}[/red]"
+            )
             return 0, 0
 
         # Collect files to upload
@@ -252,9 +271,11 @@ class S3FileUploader:
         for file_path in files_to_upload:
             # Calculate relative path for S3 key
             relative_path = file_path.relative_to(directory_path)
-            s3_key = f"{s3_prefix}/{relative_path}".lstrip("/").replace("\\", "/")
+            s3_key = f"vpms-vrt-emea-exp/{folder_choice}/{relative_path}".replace(
+                "\\", "/"
+            )
 
-            if self.upload_file(file_path, s3_key):
+            if self.upload_file(file_path, folder_choice, s3_key):
                 successful += 1
             else:
                 failed += 1
@@ -323,6 +344,16 @@ class S3FileUploader:
         except ClientError as e:
             console.print(f"[red]Error generating presigned URL: {e}[/red]")
             return None
+
+    @classmethod
+    def get_valid_folders(cls) -> list[str]:
+        """
+        Get the list of valid folders for the vpms-vrt-emea-exp directory.
+
+        Returns:
+            list: List of valid folder names
+        """
+        return cls.VALID_FOLDERS.copy()
 
 
 def create_uploader_from_env() -> Optional[S3FileUploader]:

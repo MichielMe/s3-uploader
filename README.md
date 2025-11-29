@@ -10,6 +10,7 @@ A Python CLI application for uploading files to AWS S3 with an interactive GUI f
 - 🎨 **Rich CLI Interface** - Beautiful terminal UI with `rich`
 - ⚡ **Multipart Upload** - Efficient handling of large files (25MB+ chunks)
 - 📋 **List Bucket Contents** - View files in your S3 bucket with filtering by prefix
+- 📁 **Folder Selection** - Automatically organizes uploads into predefined folders in `vpms-vrt-emea-exp/`
 
 ## Requirements
 
@@ -64,16 +65,23 @@ The application provides two main operations:
 
 When you choose to upload a file:
 
-- A GUI file picker will open
-- Select your file
-- Choose whether to use a custom S3 key/path or use the default `media/filename`
+- A GUI file picker will open to select your file
+- Choose from 5 predefined folders:
+  - **content/** - Main content files
+  - **logo/** - Logo and branding files  
+  - **stills/** - Still images and screenshots
+  - **subtitles-closed/** - Closed caption files
+  - **subtitles-open/** - Open subtitle files
+- Optionally customize the filename in S3
 - Watch the progress bar as your file uploads with real-time speed and ETA
+
+All uploads are automatically organized under the `vpms-vrt-emea-exp/` prefix in your S3 bucket.
 
 ### Listing Bucket Contents
 
 When you choose to list bucket contents:
 
-- Enter a prefix to filter (or leave empty to see all files)
+- Enter a prefix to filter (defaults to `vpms-vrt-emea-exp/`)
 - View up to 100 files with their sizes
 
 ## Configuration

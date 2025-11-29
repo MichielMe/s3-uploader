@@ -113,9 +113,57 @@ def create_uploader(bucket_name, region_name):
 
 def list_bucket_contents(uploader):
     """List and display bucket contents."""
-    prefix = Prompt.ask("  Filter by prefix", default="")
+    prefix = Prompt.ask("  Filter by prefix", default="vpms-vrt-emea-exp/")
     console.print()
     uploader.list_bucket_contents(prefix=prefix)
+
+
+def select_folder():
+    """Display folder selection menu and get user choice."""
+    print_section("Folder Selection")
+
+    valid_folders = S3FileUploader.get_valid_folders()
+
+    # Create a table showing folder options
+    table = Table(
+        show_header=False,
+        box=None,
+        padding=(0, 2),
+        show_edge=False,
+    )
+    table.add_column("Option", style="bold cyan")
+    table.add_column("Folder", style="bright_white")
+    table.add_column("Description", style="dim white")
+
+    descriptions = {
+        "content": "Main content files",
+        "logo": "Logo and branding files",
+        "stills": "Still images and screenshots",
+        "subtitles-closed": "Closed caption files",
+        "subtitles-open": "Open subtitle files",
+    }
+
+    for i, folder in enumerate(valid_folders, 1):
+        table.add_row(str(i), folder, descriptions.get(folder, ""))
+
+    console.print(table)
+    console.print()
+
+    # Get user choice
+    choice = Prompt.ask(
+        "  Select folder",
+        choices=[str(i) for i in range(1, len(valid_folders) + 1)] + valid_folders,
+        default="1",
+    )
+
+    # Convert choice to folder name if it's a number
+    if choice.isdigit():
+        folder_choice = valid_folders[int(choice) - 1]
+    else:
+        folder_choice = choice
+
+    console.print(f"  Selected: [cyan]{folder_choice}[/cyan]")
+    return folder_choice
 
 
 def upload_single_file(uploader):
@@ -135,21 +183,33 @@ def upload_single_file(uploader):
         console.print(f"  Selected: [dim]{file_path}[/dim]")
         console.print()
 
-        # Get S3 key
+        # Get folder choice
+        folder_choice = select_folder()
+        console.print()
+
+        # Option for custom S3 key
         use_custom_key = Confirm.ask(
-            "  Customize S3 path? (default: media/filename)", default=False
+            "  Customize filename in S3? (default: original filename)", default=False
         )
 
         if use_custom_key:
-            s3_key = Prompt.ask("  S3 Key", default=f"media/{file_path.name}")
+            custom_filename = Prompt.ask("  Custom filename", default=file_path.name)
+            s3_key = f"vpms-vrt-emea-exp/{folder_choice}/{custom_filename}"
         else:
-            s3_key = f"media/{file_path.name}"
+            s3_key = None  # Will use default: vpms-vrt-emea-exp/{folder}/{filename}
 
         console.print()
-        console.print(f"  Uploading to: [cyan]{s3_key}[/cyan]")
+        if s3_key:
+            console.print(f"  Uploading to: [cyan]{s3_key}[/cyan]")
+        else:
+            console.print(
+                f"  Uploading to: [cyan]vpms-vrt-emea-exp/{folder_choice}/{file_path.name}[/cyan]"
+            )
 
         # Upload
-        success = uploader.upload_file(file_path, s3_key=s3_key)
+        success = uploader.upload_file(
+            file_path, folder_choice=folder_choice, s3_key=s3_key
+        )
 
         console.print()
         if success:
@@ -173,10 +233,11 @@ def upload_directory(uploader):
         console.print(f"  [red]Error:[/red] Directory not found: {dir_path}")
         return
 
-    s3_prefix = Prompt.ask("  S3 prefix (folder path in bucket)", default="")
+    # Get folder choice
+    folder_choice = select_folder()
+    console.print()
 
     # File filters
-    console.print()
     use_filters = Confirm.ask("  Apply file filters?", default=False)
 
     include_patterns = None
@@ -192,12 +253,15 @@ def upload_directory(uploader):
             exclude_patterns = [p.strip() for p in exclude_str.split(",")]
 
     console.print()
-    console.print("  Uploading directory contents...", style="dim")
+    console.print(
+        f"  Uploading directory contents to: [cyan]vpms-vrt-emea-exp/{folder_choice}/[/cyan]",
+        style="dim",
+    )
 
     # Upload
     successful, failed = uploader.upload_directory(
         dir_path,
-        s3_prefix=s3_prefix,
+        folder_choice=folder_choice,
         include_patterns=include_patterns,
         exclude_patterns=exclude_patterns,
     )
